@@ -24,7 +24,7 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'mvn clean compile -B'
+                sh 'mvn clean package -B'
             }
         }
 
