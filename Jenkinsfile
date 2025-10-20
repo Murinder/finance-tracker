@@ -1,9 +1,18 @@
 pipeline {
     agent any
 
+    environment {
+        // 🔐 Замени эти значения или задай через Jenkins Credentials + parameters
+        DEPLOY_USER  = 'kali'           // ← твой пользователь на Kali/Ubuntu
+        DEPLOY_HOST  = '192.168.0.110'       // ← IP твоего VPS (Kali)
+        APP_NAME     = 'finance-tracker'
+        IMAGE_NAME   = "finance-tracker:${env.BUILD_NUMBER}"
+        DEPLOY_PATH  = '/opt/finance-tracker'
+    }
+
     tools {
         maven 'Maven-3.9'
-        jdk 'JDK-21'
+        jdk  'JDK-21'
     }
 
     stages {
@@ -28,29 +37,67 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("finance-tracker:${env.BUILD_NUMBER}")
+                    // Убедись, что Docker установлен и Jenkins в группе docker
+                    docker.build(env.IMAGE_NAME)
                 }
             }
         }
 
-        stage('Deploy to VPS') {
+        stage('Push Image to VPS via Save/Load') {
             steps {
                 script {
-                    // Копируем docker-compose.yml и конфиги на сервер
+                    // Сохраняем образ в tar-файл
+                    sh "docker save ${env.IMAGE_NAME} -o ${env.IMAGE_NAME}.tar"
+
+                    // Создаём папку на VPS и копируем всё
                     sh """
-                        scp -o StrictHostKeyChecking=no docker-compose.yml ${DEPLOY_USER}@${DEPLOY_HOST}:/opt/finance-tracker/
-                        scp -o StrictHostKeyChecking=no prometheus.yml ${DEPLOY_USER}@${DEPLOY_HOST}:/opt/finance-tracker/
-                        scp -o StrictHostKeyChecking=no -r grafana/ ${DEPLOY_USER}@${DEPLOY_HOST}:/opt/finance-tracker/
+                        ssh -o StrictHostKeyChecking=no ${env.DEPLOY_USER}@${env.DEPLOY_HOST} \\
+                        "mkdir -p ${env.DEPLOY_PATH}"
                     """
-                    // Запускаем docker-compose
+
                     sh """
-                        ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} \\
-                        "cd /opt/finance-tracker && \\
-                        docker-compose pull && \\
+                        scp -o StrictHostKeyChecking=no ${env.IMAGE_NAME}.tar \\
+                        docker-compose.yml \\
+                        prometheus.yml \\
+                        ${env.DEPLOY_USER}@${env.DEPLOY_HOST}:${env.DEPLOY_PATH}/
+                    """
+
+                    // Копируем папку grafana (если существует)
+                    sh """
+                        if [ -d grafana ]; then
+                            scp -o StrictHostKeyChecking=no -r grafana/ \\
+                            ${env.DEPLOY_USER}@${env.DEPLOY_HOST}:${env.DEPLOY_PATH}/
+                        fi
+                    """
+                }
+            }
+        }
+
+        stage('Deploy on VPS') {
+            steps {
+                script {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no ${env.DEPLOY_USER}@${env.DEPLOY_HOST} \\
+                        "cd ${env.DEPLOY_PATH} && \\
+                        docker load -i ${env.IMAGE_NAME}.tar && \\
+                        docker-compose down && \\
                         docker-compose up -d"
                     """
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Успешный деплой FinanceTracker! Версия: ${env.BUILD_NUMBER}"
+        }
+        failure {
+            echo "❌ Сборка или деплой завершились с ошибкой."
+        }
+        always {
+            // Опционально: удаляем временный tar-файл
+            sh "rm -f ${env.IMAGE_NAME}.tar || true"
         }
     }
 }
