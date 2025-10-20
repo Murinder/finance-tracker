@@ -7,7 +7,7 @@ pipeline {
         DEPLOY_HOST  = '192.168.0.110'       // ← IP твоего VPS (Kali)
         APP_NAME     = 'finance-tracker'
         IMAGE_NAME   = "finance-tracker:${env.BUILD_NUMBER}"
-        DEPLOY_PATH  = '/opt/finance-tracker'
+        DEPLOY_PATH  = '/home/kali/finance-tracker'
     }
 
     tools {
