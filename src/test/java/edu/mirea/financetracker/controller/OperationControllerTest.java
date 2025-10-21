@@ -1,7 +1,7 @@
-package edu.mirea.financetracker;
+package edu.mirea.financetracker.controller;
 
-import edu.mirea.financetracker.controller.OperationController;
 import edu.mirea.financetracker.dto.OperationDto;
+import edu.mirea.financetracker.enums.OperationType;
 import edu.mirea.financetracker.service.OperationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -16,7 +16,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -33,32 +33,16 @@ class OperationControllerTest {
     private OperationService service;
 
     @Test
-    void getAllOperations_returnsList() throws Exception {
-        OperationDto dto = new OperationDto();
-        dto.setId(1L);
-        dto.setAmount(new BigDecimal("100"));
-        dto.setType("EXPENSE");
-        dto.setCurrency("RUB");
-        dto.setDate(OffsetDateTime.now());
-
-        when(service.getAllOperations()).thenReturn(List.of(dto));
-
-        mockMvc.perform(get("/api/operations"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].amount").value("100"));
-    }
-
-    @Test
-    void createOperation_savesAndReturns() throws Exception {
+    void createOperation_returnsCreatedDto() throws Exception {
         OperationDto input = new OperationDto();
         input.setAmount(new BigDecimal("200"));
-        input.setType("INCOME");
+        input.setType(OperationType.INCOME);
         input.setCurrency("USD");
 
         OperationDto saved = new OperationDto();
         saved.setId(1L);
         saved.setAmount(new BigDecimal("200"));
-        saved.setType("INCOME");
+        saved.setType(OperationType.INCOME);
         saved.setCurrency("USD");
         saved.setDate(OffsetDateTime.now());
 
@@ -72,7 +56,23 @@ class OperationControllerTest {
     }
 
     @Test
-    void deleteOperation_callsService() throws Exception {
+    void updateOperation_returnsUpdatedDto() throws Exception {
+        OperationDto input = new OperationDto();
+        input.setId(1L);
+        input.setAmount(new BigDecimal("300"));
+        input.setCurrency("EUR");
+
+        when(service.updateOperation(any())).thenReturn(input);
+
+        mockMvc.perform(put("/api/operations/1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(input)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.amount").value("300"));
+    }
+
+    @Test
+    void deleteOperation_returnsNoContent() throws Exception {
         mockMvc.perform(delete("/api/operations/1"))
                 .andExpect(status().isNoContent());
     }

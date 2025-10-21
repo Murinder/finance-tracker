@@ -1,6 +1,7 @@
 package edu.mirea.financetracker.repository;
 
 import edu.mirea.financetracker.entity.Operation;
+import edu.mirea.financetracker.enums.OperationType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -28,4 +29,6 @@ public interface OperationRepository extends JpaRepository<Operation, Long> {
     @Query("SELECT o.currency, SUM(CASE WHEN o.type = 'INCOME' THEN o.amount ELSE -o.amount END) " +
             "FROM Operation o GROUP BY o.currency")
     List<Object[]> getBalanceByCurrency();
+
+    List<Operation> findByTypeAndDateBetween(OperationType type, OffsetDateTime from, OffsetDateTime to);
 }

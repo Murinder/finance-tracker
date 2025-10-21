@@ -1,5 +1,6 @@
 package edu.mirea.financetracker.entity;
 
+import edu.mirea.financetracker.enums.OperationType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -25,7 +26,8 @@ public class Operation {
     private String category;
 
     @Column(nullable = false)
-    private String type; // "INCOME" or "EXPENSE"
+    @Enumerated(EnumType.STRING)
+    private OperationType type;
 
     @Column(name = "date", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
     private OffsetDateTime date;

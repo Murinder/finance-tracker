@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # Приложение Spring Boot
   finance-tracker:
-    # build: .
+    build: .
     image: finance-tracker:latest
     container_name: finance-tracker-app
     ports:
@@ -12,9 +12,12 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/finance_db
       SPRING_DATASOURCE_USERNAME: finance_user
       SPRING_DATASOURCE_PASSWORD: finance_pass
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
     depends_on:
       - postgres
       - prometheus
+      - redis
     networks:
       - monitoring_net
 
@@ -61,6 +64,13 @@ services:
       - ./grafana/provisioning/:/etc/grafana/provisioning/
     depends_on:
       - prometheus
+    networks:
+      - monitoring_net
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
     networks:
       - monitoring_net
 

@@ -1,10 +1,12 @@
 package edu.mirea.financetracker.service;
 
+import edu.mirea.financetracker.config.CurrencyValidator;
 import edu.mirea.financetracker.dto.BalanceByCurrencyDto;
 import edu.mirea.financetracker.dto.ForecastDto;
 import edu.mirea.financetracker.dto.IncomeExpenseStatsDto;
 import edu.mirea.financetracker.dto.OperationDto;
 import edu.mirea.financetracker.entity.Operation;
+import edu.mirea.financetracker.enums.OperationType;
 import edu.mirea.financetracker.mapper.OperationMapper;
 import edu.mirea.financetracker.repository.OperationRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,9 @@ public class OperationService {
 
     private final OperationRepository operationRepository;
     private final OperationMapper operationMapper;
+    private final CurrencyService currencyService;
+    private final CurrencyValidator currencyValidator;
+
 
     public List<OperationDto> getAllOperations() {
         return operationRepository.findAll().stream()
@@ -37,6 +42,7 @@ public class OperationService {
     }
 
     public OperationDto saveOperation(OperationDto operationDto) {
+        validateCurrency(operationDto.getCurrency());
         Operation entity = operationMapper.toEntity(operationDto);
         if (entity.getDate() == null) {
             entity.setDate(OffsetDateTime.now());
@@ -51,12 +57,22 @@ public class OperationService {
 
     // === Статистика ===
     public IncomeExpenseStatsDto getIncomeExpenseStats(OffsetDateTime from, OffsetDateTime to) {
-        BigDecimal income = operationRepository.getTotalIncome(from, to);
-        BigDecimal expense = operationRepository.getTotalExpense(from, to);
-        return new IncomeExpenseStatsDto(
-                income != null ? income : BigDecimal.ZERO,
-                expense != null ? expense : BigDecimal.ZERO
-        );
+        // Получаем все операции за период
+        List<Operation> operations = operationRepository.findByDateBetween(from, to);
+
+        BigDecimal totalIncome = BigDecimal.ZERO;
+        BigDecimal totalExpense = BigDecimal.ZERO;
+
+        for (Operation op : operations) {
+            BigDecimal amountInBase = currencyService.convertToBaseCurrency(op.getAmount(), op.getCurrency());
+            if (OperationType.INCOME.equals(op.getType())) {
+                totalIncome = totalIncome.add(amountInBase);
+            } else if (OperationType.EXPENSE.equals(op.getType())) {
+                totalExpense = totalExpense.add(amountInBase);
+            }
+        }
+
+        return new IncomeExpenseStatsDto(totalIncome, totalExpense);
     }
 
     public List<BalanceByCurrencyDto> getBalanceByCurrency() {
@@ -69,16 +85,43 @@ public class OperationService {
     // === Прогноз на следующий месяц ===
     public ForecastDto getForecastForNextMonth() {
         OffsetDateTime now = OffsetDateTime.now();
-        OffsetDateTime start = now.minusMonths(3).withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
-        OffsetDateTime end = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+        OffsetDateTime start = now.minusMonths(3).withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS);
+        OffsetDateTime end = now.withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS);
 
-        BigDecimal avgExpense = operationRepository.getTotalExpense(start, end);
-        if (avgExpense == null) avgExpense = BigDecimal.ZERO;
+        // Получаем все расходы за период
+        List<Operation> expenses = operationRepository.findByTypeAndDateBetween(OperationType.EXPENSE, start, end);
+
+        BigDecimal totalInBase = BigDecimal.ZERO;
+        for (Operation op : expenses) {
+            totalInBase = totalInBase.add(
+                    currencyService.convertToBaseCurrency(op.getAmount(), op.getCurrency())
+            );
+        }
 
         long months = ChronoUnit.MONTHS.between(start, end);
         if (months == 0) months = 1;
 
-        BigDecimal monthlyAvg = avgExpense.divide(BigDecimal.valueOf(months), 2, RoundingMode.HALF_UP);
-        return new ForecastDto(monthlyAvg);
+        BigDecimal avg = totalInBase.divide(BigDecimal.valueOf(months), 2, RoundingMode.HALF_UP);
+        return new ForecastDto(avg);
     }
+
+    public OperationDto updateOperation(OperationDto dto) {
+        validateCurrency(dto.getCurrency());
+        Operation entity = operationRepository.findById(dto.getId())
+                .orElseThrow(() -> new RuntimeException("Operation not found"));
+        operationMapper.updateEntityFromDto(dto, entity);
+        Operation updated = operationRepository.save(entity);
+        return operationMapper.toDto(updated);
+    }
+
+    public void validateCurrency(String currency) {
+        if (currency == null || currency.isEmpty()) {
+            throw new IllegalArgumentException("Currency cannot be null or empty");
+        }
+        if (!currencyValidator.isValid(currency)) {
+            throw new IllegalArgumentException("Unsupported currency: " + currency +
+                    ". Supported currencies: " + currencyValidator.getSupportedCurrencies());
+        }
+    }
+
 }

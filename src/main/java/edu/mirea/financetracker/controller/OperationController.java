@@ -1,6 +1,9 @@
 package edu.mirea.financetracker.controller;
 
-import edu.mirea.financetracker.dto.*;
+import edu.mirea.financetracker.dto.BalanceByCurrencyDto;
+import edu.mirea.financetracker.dto.ForecastDto;
+import edu.mirea.financetracker.dto.IncomeExpenseStatsDto;
+import edu.mirea.financetracker.dto.OperationDto;
 import edu.mirea.financetracker.service.OperationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -68,5 +71,12 @@ public class OperationController {
     @Operation(summary = "Прогноз расходов на следующий месяц")
     public ForecastDto getForecast() {
         return operationService.getForecastForNextMonth();
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "Обновить операцию по ID")
+    public OperationDto update(@PathVariable Long id, @RequestBody OperationDto operationDto) {
+        operationDto.setId(id);
+        return operationService.updateOperation(operationDto);
     }
 }
