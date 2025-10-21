@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # Приложение Spring Boot
   finance-tracker:
-    build: .
+    # build: .
     image: finance-tracker:latest
     container_name: finance-tracker-app
     ports:
