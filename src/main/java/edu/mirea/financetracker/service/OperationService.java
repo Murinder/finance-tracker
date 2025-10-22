@@ -106,15 +106,18 @@ public class OperationService {
     }
 
     public OperationDto updateOperation(OperationDto dto) {
-        validateCurrency(dto.getCurrency());
+        if(dto.getCurrency() != null ){
+            validateCurrency(dto.getCurrency());
+        }
         Operation entity = operationRepository.findById(dto.getId())
                 .orElseThrow(() -> new RuntimeException("Operation not found"));
-        entity.setAmount( dto.getAmount() != null ? dto.getAmount(): entity.getAmount());
-        entity.setCategory( dto.getCategory() != null ? dto.getCategory(): entity.getCategory());
-        entity.setType( dto.getType() != null ? dto.getType(): entity.getType() );
-        entity.setDate( dto.getDate() != null ? dto.getDate(): entity.getDate());
-        entity.setCurrency( dto.getCurrency() != null ? dto.getCurrency(): entity.getCurrency());
-        Operation updated = operationRepository.save(entity);
+        OperationDto mapped = operationMapper.toDto(entity);
+        mapped.setAmount( dto.getAmount() != null ? dto.getAmount(): entity.getAmount());
+        mapped.setCategory( dto.getCategory() != null ? dto.getCategory(): entity.getCategory());
+        mapped.setType( dto.getType() != null ? dto.getType(): entity.getType() );
+        mapped.setDate( dto.getDate() != null ? dto.getDate(): entity.getDate());
+        mapped.setCurrency( dto.getCurrency() != null ? dto.getCurrency(): entity.getCurrency());
+        Operation updated = operationRepository.save(operationMapper.toEntity(mapped));
         return operationMapper.toDto(updated);
     }
 
