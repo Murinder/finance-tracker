@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DEPLOY_USER  = 'kali'
-        DEPLOY_HOST  = '192.168.0.110'
+        DEPLOY_HOST  = '10.203.239.140'
         DEPLOY_PATH  = '/home/kali/finance-tracker'
         IMAGE_NAME   = 'finance-tracker:latest'  // ← фиксированный тег
         TAR_NAME     = 'finance-tracker.tar'     // ← без номера сборки в имени
