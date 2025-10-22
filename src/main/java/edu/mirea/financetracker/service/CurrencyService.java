@@ -26,6 +26,7 @@ public class CurrencyService {
     private final CurrencyValidator currencyValidator;
 
     public void setBaseCurrency(String currency) {
+        currencyValidator.isValid(currency);
         this.baseCurrency.set(currency);
     }
 
@@ -57,8 +58,8 @@ public class CurrencyService {
 
         }
         return CurrencyRateDto.builder()
-                .rates(rates)
                 .baseCode(getBaseCurrency())
+                .rates(rates)
                 .build();
     }
 

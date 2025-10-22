@@ -109,7 +109,11 @@ public class OperationService {
         validateCurrency(dto.getCurrency());
         Operation entity = operationRepository.findById(dto.getId())
                 .orElseThrow(() -> new RuntimeException("Operation not found"));
-        operationMapper.updateEntityFromDto(dto, entity);
+        entity.setAmount( dto.getAmount() != null ? dto.getAmount(): entity.getAmount());
+        entity.setCategory( dto.getCategory() != null ? dto.getCategory(): entity.getCategory());
+        entity.setType( dto.getType() != null ? dto.getType(): entity.getType() );
+        entity.setDate( dto.getDate() != null ? dto.getDate(): entity.getDate());
+        entity.setCurrency( dto.getCurrency() != null ? dto.getCurrency(): entity.getCurrency());
         Operation updated = operationRepository.save(entity);
         return operationMapper.toDto(updated);
     }
